@@ -1,4 +1,5 @@
 mod config;
+mod gpg_agent;
 mod ssh_agent;
 mod tcp;
 mod time;
@@ -106,6 +107,14 @@ async fn main() {
         tasks.push(tokio::task::spawn(async move {
             if let Err(err) = ssh_agent::ssh_agent_forward(config).await {
                 eprintln!("SSH-Agent forwarder error: {}", err);
+            }
+        }));
+    }
+
+    if let Some(config) = &CONFIG.gpg_agent {
+        tasks.push(tokio::task::spawn(async move {
+            if let Err(err) = gpg_agent::gpg_agent_forward(config).await {
+                eprintln!("GPG-Agent forwarder error: {}", err);
             }
         }));
     }
