@@ -21,6 +21,9 @@ pub struct Config {
 
     #[serde(default)]
     pub ssh_agent: Option<SshAgentConfig>,
+
+    #[serde(default)]
+    pub gpg_agent: Option<GpgAgentConfig>,
 }
 
 impl Default for Config {
@@ -31,6 +34,7 @@ impl Default for Config {
             x11: None,
             tcp_forward: None,
             ssh_agent: None,
+            gpg_agent: None,
         }
     }
 }
@@ -98,4 +102,19 @@ fn default_ssh_auth_sock() -> String {
 pub struct SshAgentConfig {
     #[serde(default = "default_ssh_auth_sock")]
     pub ssh_auth_sock: String,
+}
+
+fn default_gpg_agent_sock() -> String {
+    dirs::runtime_dir()
+        .unwrap()
+        .join("gnupg/S.gpg-agent")
+        .to_str()
+        .unwrap()
+        .to_owned()
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GpgAgentConfig {
+    #[serde(default = "default_gpg_agent_sock")]
+    pub gpg_agent_sock: String,
 }
