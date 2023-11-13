@@ -3,15 +3,32 @@ name: CI
 on: [push]
 
 jobs:
-  build-wsl:
+  build:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v3
+  
+      - uses: docker/setup-buildx-action@f95db51fddba0c2d1ec667646a06c2ce06100226 #v3.0.0
 
-      - name: Build
-        working-directory: client
-        run: cargo build --release
+      - uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v3.0.0
+        with:
+          context: .
+          file: Dockerfile
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: wsld-builder:latest
+          push: false
+          load: true
+
+      - name: Run builder container
+        run: docker run -v "$(pwd):/workspace" --name builder -d --user $UID:$GID --workdir /workspace wsld-builder:latest sleep infinity
+
+      - name: Build (Linux)
+        run: docker exec --workdir /workspace/client builder cargo build --release
+
+      - name: Build (Windows)
+        run: docker exec --workdir /workspace/server builder cargo build --release --target x86_64-pc-windows-gnu
 
       - name: Strip Debug Symbols
         run: strip target/release/wsld
@@ -19,35 +36,6 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: 'wsld'
-          path: target/release/wsld
-
-      - uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          prerelease: true
-          files: target/release/wsld
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  build-windows:
-    runs-on: windows-latest
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Build
-        working-directory: server
-        run: cargo build --release
-
-      - uses: actions/upload-artifact@v3
-        with:
-          name: 'wsldhost.exe'
-          path: target/release/wsldhost.exe
-
-      - uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          prerelease: true
-          files: target/release/wsldhost.exe
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          path: |
+            target/release/wsld
+            target/x86_64-pc-windows-gnu/release/wsldhost.exe
