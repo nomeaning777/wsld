@@ -113,8 +113,20 @@ fn default_gpg_agent_sock() -> String {
         .to_owned()
 }
 
+fn default_gpg_agent_extra_sock() -> String {
+    dirs::runtime_dir()
+        .unwrap()
+        .join("gnupg/S.gpg-agent.extra")
+        .to_str()
+        .unwrap()
+        .to_owned()
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GpgAgentConfig {
     #[serde(default = "default_gpg_agent_sock")]
     pub gpg_agent_sock: String,
+
+    #[serde(default = "default_gpg_agent_extra_sock")]
+    pub gpg_agent_extra_sock: String,
 }

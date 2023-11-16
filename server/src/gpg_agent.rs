@@ -4,14 +4,30 @@ use super::util::{connect_stream, either};
 
 use anyhow::{anyhow, Context as _, Result};
 use tokio::fs::read;
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::process::Command;
 
+enum SocketType {
+    Default,
+    Extra,
+}
 pub async fn handle_gpg_agent(mut stream: TcpStream) -> Result<()> {
+    let mut socket_type = [0u8; 1];
+    stream.read_exact(&mut socket_type).await?;
+
+    let socket_type = match socket_type[0] {
+        b'0' => SocketType::Default,
+        b'1' => SocketType::Extra,
+        _ => return Err(anyhow!("invalid socket type")),
+    };
+
     let gpg_conf = Command::new("gpgconf.exe")
         .arg("--list-dir")
-        .arg("agent-socket")
+        .arg(match socket_type {
+            SocketType::Default => "agent-socket",
+            SocketType::Extra => "agent-extra-socket",
+        })
         .stdout(Stdio::piped())
         .spawn()?;
     let output = gpg_conf.wait_with_output().await?;
