@@ -57,7 +57,7 @@ async fn sync_time() -> std::io::Result<()> {
     let diff_str = format!(
         "{}{}",
         if diff < 0 { "-" } else { "" },
-        humantime::format_duration(Duration::from_micros(diff.abs() as u64))
+        humantime::format_duration(Duration::from_micros(diff.unsigned_abs()))
     );
     eprintln!(
         "Received time {}, clock off by {}, {}",

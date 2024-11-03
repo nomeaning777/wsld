@@ -27,7 +27,7 @@ impl X11Lock {
             match file {
                 Ok(mut file) => {
                     // Fresh file, just write our PID into it and we got the lock
-                    match write!(file, "{:>10}\n", std::process::id()) {
+                    match writeln!(file, "{:>10}", std::process::id()) {
                         Ok(_) => return Ok(X11Lock { display }),
                         Err(err) => {
                             let _ = fs::remove_file(&name);

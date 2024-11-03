@@ -21,7 +21,7 @@ use uuid::Uuid;
 use config::Config;
 use vmsocket::VmSocket;
 
-static CONFIG: Lazy<Config> = Lazy::new(|| Config::parse());
+static CONFIG: Lazy<Config> = Lazy::new(Config::parse);
 
 async fn handle_stream(mut stream: TcpStream) -> Result<()> {
     // Read the function code at the start of the stream for demultiplexing
@@ -31,15 +31,19 @@ async fn handle_stream(mut stream: TcpStream) -> Result<()> {
         buf
     };
 
-    Ok(match &func {
-        b"x11\0" => x11::handle_x11(stream).await?,
-        b"time" => time::handle_time(stream).await?,
-        b"tcp\0" => tcp::handle_tcp(stream).await?,
-        b"ssha" => ssh_agent::handle_ssh_agent(stream).await?,
-        b"gpga" => gpg_agent::handle_gpg_agent(stream).await?,
-        b"noop" => (),
+    match &func {
+        b"x11\0" => x11::handle_x11(stream).await.map_err(Into::into),
+        b"time" => time::handle_time(stream).await.map_err(Into::into),
+        b"tcp\0" => tcp::handle_tcp(stream).await.map_err(Into::into),
+        b"ssha" => ssh_agent::handle_ssh_agent(stream)
+            .await
+            .map_err(Into::into),
+        b"gpga" => gpg_agent::handle_gpg_agent(stream)
+            .await
+            .map_err(Into::into),
+        b"noop" => Ok(()),
         _ => bail!("unknown function {:?}", func),
-    })
+    }
 }
 
 async fn task(vmid: Uuid) -> Result<()> {
