@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 fn default_service_port() -> u32 {
-    6000
+    6001
 }
 
 #[derive(Serialize, Deserialize, Debug)]

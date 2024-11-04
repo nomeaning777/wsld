@@ -10,10 +10,10 @@ fn parse_uuid(str: &str) -> std::io::Result<Uuid> {
 #[derive(Debug, Parser)]
 #[clap(name = "wsldhost")]
 pub struct Config {
-    #[clap(short, long)]
+    #[clap(short, long, default_value = "true")]
     pub daemon: bool,
 
-    #[clap(short = 'p', long, default_value = "6000")]
+    #[clap(short = 'p', long, default_value = "6001")]
     pub service_port: u32,
 
     #[clap(name = "VMID", value_parser = parse_uuid)]
