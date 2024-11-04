@@ -1,5 +1,5 @@
-// Hide console window
-//#![windows_subsystem = "windows"]
+// Prevents additional console window on Windows in release, DO NOT REMOVE!!
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod config;
 mod gpg_agent;
@@ -13,12 +13,16 @@ mod x11;
 
 use anyhow::{bail, Result};
 use clap::Parser;
+use config::Config;
+use log::info;
 use once_cell::sync::Lazy;
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::TrayIconBuilder;
+use tauri::RunEvent;
+use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 use tokio::io::AsyncReadExt;
 use tokio::net::TcpStream;
 use uuid::Uuid;
-
-use config::Config;
 use vmsocket::VmSocket;
 
 static CONFIG: Lazy<Config> = Lazy::new(Config::parse);
@@ -61,10 +65,7 @@ async fn task(vmid: Uuid) -> Result<()> {
     }
 }
 
-#[tokio::main(flavor = "current_thread")]
-async fn main() {
-    unsafe { winapi::um::wincon::AttachConsole(winapi::um::wincon::ATTACH_PARENT_PROCESS) };
-
+async fn server_main() {
     if CONFIG.daemon {
         let mut prev_vmid = None;
         let mut future: Option<tokio::task::JoinHandle<()>> = None;
@@ -105,4 +106,50 @@ async fn main() {
             return;
         }
     }
+}
+
+fn main() {
+    tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .setup(|app| {
+            app.handle().plugin(tauri_plugin_autostart::init(
+                tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+                Some(Vec::new()),
+            ));
+            let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&quit_i])?;
+
+            let tray = TrayIconBuilder::new()
+                .menu(&menu)
+                .menu_on_left_click(true)
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "quit" => {
+                        info!("quit menu item was clicked");
+                        app.exit(0);
+                    }
+                    _ => {
+                        info!("menu item {:?} not handled", event.id);
+                    }
+                })
+                .build(app)?;
+            let ans = app
+                .dialog()
+                .message("File not found")
+                .kind(MessageDialogKind::Error)
+                .title("Warning")
+                .blocking_show();
+            tauri::async_runtime::spawn(server_main());
+            Ok(())
+        })
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(move |app_handle, e| {
+            // Keep the event loop running even if all windows are closed
+            // This allow us to catch system tray events when there is no window
+            if let RunEvent::ExitRequested { api, code, .. } = &e {
+                if code.is_none() {
+                    api.prevent_exit();
+                }
+            }
+        });
 }
